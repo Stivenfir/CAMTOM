@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi import HTTPException
 
 from camtom_replacement.core.config import get_settings
 from camtom_replacement.db.sql_server import SqlServerClient
@@ -8,7 +9,7 @@ from camtom_replacement.services.extraction_service import ExtractionService
 
 
 def create_app() -> FastAPI:
-    settings = get_settings()
+    settings = get_settings(validate=False)
 
     db_client = SqlServerClient(
         server=settings.sql_server,
@@ -27,9 +28,28 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="CAMTOM Replacement - Integralaia")
 
+    @app.on_event("startup")
+    def validate_env() -> None:
+        settings.validate_required()
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/config-check")
+    def config_check() -> dict[str, str | int | bool]:
+        if not settings.provider_api_key or settings.provider_api_key == "REEMPLAZAR_CON_TOKEN_REAL":
+            raise HTTPException(status_code=500, detail="PROVIDER_API_KEY no configurada")
+
+        return {
+            "sql_server": settings.sql_server,
+            "sql_database": settings.sql_database,
+            "provider_base_url": settings.provider_base_url,
+            "provider_timeout_seconds": settings.provider_timeout_seconds,
+            "app_host": settings.app_host,
+            "app_port": settings.app_port,
+            "app_reload": settings.app_reload,
+        }
 
     @app.post("/api/v2/procesarfactura/{doc_impoid}")
     def procesar_factura(doc_impoid: int):

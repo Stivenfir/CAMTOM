@@ -1,7 +1,15 @@
-from pydantic import BaseModel
-from pydantic import Field
-from pydantic import ConfigDict
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+
+
+# Carga .env desde la raíz del proyecto si existe
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 class Settings(BaseModel):
@@ -18,6 +26,22 @@ class Settings(BaseModel):
     provider_api_key: str = Field(default_factory=lambda: os.getenv("PROVIDER_API_KEY", ""))
     provider_timeout_seconds: int = Field(default_factory=lambda: int(os.getenv("PROVIDER_TIMEOUT_SECONDS", "60")))
 
+    app_host: str = Field(default_factory=lambda: os.getenv("APP_HOST", "0.0.0.0"))
+    app_port: int = Field(default_factory=lambda: int(os.getenv("APP_PORT", "8000")))
+    app_reload: bool = Field(default_factory=lambda: os.getenv("APP_RELOAD", "false").lower() == "true")
 
-def get_settings() -> Settings:
-    return Settings()
+    def validate_required(self) -> None:
+        missing: list[str] = []
+
+        if not self.provider_api_key or self.provider_api_key == "REEMPLAZAR_CON_TOKEN_REAL":
+            missing.append("PROVIDER_API_KEY")
+
+        if missing:
+            raise ValueError(f"Faltan variables obligatorias: {', '.join(missing)}")
+
+
+def get_settings(validate: bool = True) -> Settings:
+    settings = Settings()
+    if validate:
+        settings.validate_required()
+    return settings
