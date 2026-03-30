@@ -6,3 +6,4 @@ msal
 numpy
 pydantic
 fastapi
+uvicorn

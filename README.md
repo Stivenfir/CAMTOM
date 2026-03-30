@@ -1,36 +1,53 @@
-## Ejecucion del servidor:
-    python -m uvicorn consolidado:app --host 0.0.0.0 --port 8000
+## CAMTOM Replacement (nuevo proveedor Integralaia)
 
+Esta versión reorganiza el procesamiento para **mantener las tablas/conexiones de tracking TK** y cambiar el proveedor de extracción a la API de Integralaia.
 
------------------------------------------------------------------------
+### Nueva estructura
 
+```text
+src/camtom_replacement/
+  api/app.py
+  core/config.py
+  db/sql_server.py
+  repositories/tracking_repository.py
+  providers/integralaia_provider.py
+  services/extraction_service.py
+```
 
-    curl -X GET "https://apps.abcrepecev.com:1901/API-ABC/procesarfactura.php?id=xxxxxx
+### Endpoints usados del proveedor
 
-## Descripcion general
-Este endpoint inicia el procesamiento de una o varias facturas asociadas a un identificador DocImpoID. 
-El procesamiento se realiza en segundo plano utilizando el sistema de tareas BackgroundTasks de FastAPI, 
-permitiendo que el cliente reciba una respuesta inmediata mientras el sistema continúa trabajando de forma asíncrona.
+- `POST /api/middleware/create-operation-from-mdw`
+- `GET /api/mw/document-types`
+- `PUT /api/mw/document-types/{document_code}/extraction-schema`
+- `GET /api/mw/operations/{doc_impoid}/documents/extracted-data`
 
+Base URL de referencia:
+`https://dev-visado-api-abcrepecev.integralaia.com/docs`
 
-------------------------------------------------------------------------
+### Variables de entorno
 
+- `SQL_SERVER` (default `172.16.10.54\\DBABC21`)
+- `SQL_DATABASE` (default `Repecev2005_H`)
+- `SQL_USERNAME` (default `Repecev2005`)
+- `SQL_PASSWORD` (default vacío)
+- `PROVIDER_BASE_URL` (default `https://dev-visado-api-abcrepecev.integralaia.com`)
+- `PROVIDER_API_KEY` (default vacío)
+- `PROVIDER_TIMEOUT_SECONDS` (default `60`)
 
-    curl -X GET "https://apps.abcrepecev.com:1901/API-ABC/procesoclasificacion.php?id=xxxxxx
+### Ejecución
 
-## Descripcion general
-Este endpoint inicia un proceso automatizado de clasificación arancelaria de ítems relacionados a un documento de importación identificado por DocImpoID.
-El proceso se ejecuta en segundo plano, 
-permitiendo una respuesta inmediata mientras se realiza la actualización en base de datos con la clasificación sugerida por un modelo o proceso.
+```bash
+uvicorn src.camtom_replacement.api.app:app --host 0.0.0.0 --port 8000
+```
 
+### Endpoint de procesamiento
 
-------------------------------------------------------------------------
+```bash
+curl -X POST "http://localhost:8000/api/v2/procesarfactura/{doc_impoid}"
+```
 
-
-    curl -X POST "https://apps.abcrepecev.com:1901/API-ABC/procesoexcel.php" -H "Content-Type: application/x-www-form-urlencoded" -d "ruta=xxxxxx.xlsx&idmaestro=xxxxxx
-
-## Descripcion general
-Este endpoint recibe una ruta de archivo Excel y un id de maestro (idmaestro) para:
-- Leer el archivo Excel.
-- Procesar los datos en segundo plano (background).
-- Clasificar productos y actualizar la base de datos con esa información.
+Este flujo:
+1. Consulta pendientes en `IA_IM_ProcesarFacturasIA`.
+2. Marca inicio/fin/error en la misma tabla de tracking.
+3. Crea operación en middleware del nuevo proveedor.
+4. Consulta datos extraídos por `doc_impoid`.
