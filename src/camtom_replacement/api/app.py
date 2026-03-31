@@ -1,11 +1,17 @@
 from fastapi import FastAPI
 from fastapi import HTTPException
+from pydantic import BaseModel
 
 from camtom_replacement.core.config import get_settings
 from camtom_replacement.db.sql_server import SqlServerClient
 from camtom_replacement.providers.integralaia_provider import IntegralaiaProvider
 from camtom_replacement.repositories.tracking_repository import TrackingRepository
 from camtom_replacement.services.extraction_service import ExtractionService
+
+
+class ProcessFolderRequest(BaseModel):
+    doc_impoid: int
+    folder_path: str = "./facturas_inbox"
 
 
 def create_app() -> FastAPI:
@@ -38,13 +44,16 @@ def create_app() -> FastAPI:
 
     @app.get("/config-check")
     def config_check() -> dict[str, str | int | bool]:
-        if not settings.provider_api_key or settings.provider_api_key == "REEMPLAZAR_CON_TOKEN_REAL":
+        if settings.provider_require_api_key and (
+            not settings.provider_api_key or settings.provider_api_key == "REEMPLAZAR_CON_TOKEN_REAL"
+        ):
             raise HTTPException(status_code=500, detail="PROVIDER_API_KEY no configurada")
 
         return {
             "sql_server": settings.sql_server,
             "sql_database": settings.sql_database,
             "provider_base_url": settings.provider_base_url,
+            "provider_require_api_key": settings.provider_require_api_key,
             "provider_timeout_seconds": settings.provider_timeout_seconds,
             "app_host": settings.app_host,
             "app_port": settings.app_port,
@@ -57,6 +66,13 @@ def create_app() -> FastAPI:
             "doc_impoid": doc_impoid,
             "results": extraction_service.process_doc_impoid(doc_impoid),
         }
+
+    @app.post("/api/v2/procesar-carpeta")
+    def procesar_carpeta(request: ProcessFolderRequest):
+        return extraction_service.process_folder_documents(
+            doc_impoid=request.doc_impoid,
+            folder_path=request.folder_path,
+        )
 
     return app
 

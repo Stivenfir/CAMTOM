@@ -1,4 +1,5 @@
 from typing import Any
+from pathlib import Path
 
 from camtom_replacement.providers.integralaia_provider import IntegralaiaProvider
 from camtom_replacement.repositories.tracking_repository import TrackingRepository
@@ -47,3 +48,42 @@ class ExtractionService:
                 )
 
         return results
+
+    def process_folder_documents(self, doc_impoid: int, folder_path: str) -> dict[str, Any]:
+        folder = Path(folder_path)
+        folder.mkdir(parents=True, exist_ok=True)
+
+        files = sorted(path for path in folder.iterdir() if path.is_file())
+        results: list[dict[str, Any]] = []
+
+        for index, file_path in enumerate(files, start=1):
+            payload = {
+                "doc_impoid": doc_impoid,
+                "procesar_factura_id": index,
+                "soporte_id": index,
+                "ruta_factura": str(file_path.resolve()),
+            }
+            try:
+                operation = self.provider.create_operation_from_middleware(payload)
+                extracted_data = self.provider.get_extracted_data(doc_impoid)
+                results.append(
+                    {
+                        "file_name": file_path.name,
+                        "operation": operation,
+                        "extracted_data": extracted_data,
+                    }
+                )
+            except Exception as exc:
+                results.append(
+                    {
+                        "file_name": file_path.name,
+                        "error": str(exc),
+                    }
+                )
+
+        return {
+            "doc_impoid": doc_impoid,
+            "folder_path": str(folder.resolve()),
+            "files_found": len(files),
+            "results": results,
+        }

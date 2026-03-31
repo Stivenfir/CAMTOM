@@ -6,7 +6,7 @@ Proyecto reorganizado para mantener tablas/conexiones de tracking TK y cambiar p
 
 ```bash
 cp .env.example .env
-# editar .env y poner PROVIDER_API_KEY real
+# editar .env (si el middleware exige token, poner PROVIDER_API_KEY real)
 python -m venv .venv
 source .venv/bin/activate   # en Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -28,7 +28,8 @@ Archivo `.env`:
 - `SQL_USERNAME=Repecev2005`
 - `SQL_PASSWORD=`
 - `PROVIDER_BASE_URL=https://dev-visado-api-abcrepecev.integralaia.com`
-- `PROVIDER_API_KEY=...` (obligatoria)
+- `PROVIDER_API_KEY=...` (opcional si tu middleware permite llamadas sin token)
+- `PROVIDER_REQUIRE_API_KEY=false` (poner `true` si tu middleware sí exige token)
 - `PROVIDER_TIMEOUT_SECONDS=60`
 - `APP_HOST=0.0.0.0`
 - `APP_PORT=8000`
@@ -39,6 +40,7 @@ Archivo `.env`:
 - `GET /health`
 - `GET /config-check`
 - `POST /api/v2/procesarfactura/{doc_impoid}`
+- `POST /api/v2/procesar-carpeta`
 
 Ejemplo:
 
@@ -46,6 +48,9 @@ Ejemplo:
 curl http://localhost:8000/health
 curl http://localhost:8000/config-check
 curl -X POST "http://localhost:8000/api/v2/procesarfactura/123456"
+curl -X POST "http://localhost:8000/api/v2/procesar-carpeta" \
+  -H "Content-Type: application/json" \
+  -d '{"doc_impoid":123456,"folder_path":"./facturas_inbox"}'
 ```
 
 ## 4) Flujo funcional
@@ -55,6 +60,13 @@ curl -X POST "http://localhost:8000/api/v2/procesarfactura/123456"
 3. Se llama `POST /api/middleware/create-operation-from-mdw`.
 4. Se consulta extracción con `GET /api/mw/operations/{doc_impoid}/documents/extracted-data`.
 5. Se marca éxito/error en la tabla de tracking.
+
+### Prueba rápida con carpeta local
+
+1. Crea (o usa) la carpeta `./facturas_inbox`.
+2. Copia ahí una o más facturas (pdf, xlsx, etc.).
+3. Ejecuta `POST /api/v2/procesar-carpeta` con `doc_impoid` y `folder_path`.
+4. El servicio recorre todos los archivos de esa carpeta y devuelve el resultado de extracción por archivo.
 
 ## 5) Endpoints usados del proveedor
 
