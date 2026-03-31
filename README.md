@@ -6,7 +6,7 @@ Proyecto reorganizado para mantener tablas/conexiones de tracking TK y cambiar p
 
 ```bash
 cp .env.example .env
-# editar .env (si el middleware exige token, poner PROVIDER_API_KEY real)
+# editar .env (si tienes token, agrégalo en PROVIDER_API_KEY)
 python -m venv .venv
 source .venv/bin/activate   # en Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -28,8 +28,8 @@ Archivo `.env`:
 - `SQL_USERNAME=Repecev2005`
 - `SQL_PASSWORD=`
 - `PROVIDER_BASE_URL=https://dev-visado-api-abcrepecev.integralaia.com`
-- `PROVIDER_API_KEY=...` (opcional si tu middleware permite llamadas sin token)
-- `PROVIDER_REQUIRE_API_KEY=false` (poner `true` si tu middleware sí exige token)
+- `PROVIDER_API_KEY=...` (opcional)
+- `PROVIDER_USE_DOC_HASH=false` (poner `true` para enviar `doc_impoid` + `hash` SHA256 en query string)
 - `PROVIDER_TIMEOUT_SECONDS=60`
 - `APP_HOST=0.0.0.0`
 - `APP_PORT=8000`
@@ -67,6 +67,12 @@ curl -X POST "http://localhost:8000/api/v2/procesar-carpeta" \
 2. Copia ahí una o más facturas (pdf, xlsx, etc.).
 3. Ejecuta `POST /api/v2/procesar-carpeta` con `doc_impoid` y `folder_path`.
 4. El servicio recorre todos los archivos de esa carpeta y devuelve el resultado de extracción por archivo.
+
+### Autenticación / seguridad del middleware
+
+- Por defecto, el servicio puede llamar sin token (no se bloquea startup si `PROVIDER_API_KEY` está vacío).
+- Si defines `PROVIDER_API_KEY`, se envía `Authorization: Bearer ...`.
+- Si defines `PROVIDER_USE_DOC_HASH=true`, además se envían `doc_impoid` y `hash=SHA256(doc_impoid)` en query string (compatible con flujos legados tipo `GetCreateOperationUrl`).
 
 ## 5) Endpoints usados del proveedor
 

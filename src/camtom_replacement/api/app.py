@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi import HTTPException
 from pydantic import BaseModel
 
 from camtom_replacement.core.config import get_settings
@@ -29,6 +28,7 @@ def create_app() -> FastAPI:
         base_url=settings.provider_base_url,
         api_key=settings.provider_api_key,
         timeout=settings.provider_timeout_seconds,
+        use_doc_hash=settings.provider_use_doc_hash,
     )
     extraction_service = ExtractionService(tracking_repository, provider)
 
@@ -44,16 +44,12 @@ def create_app() -> FastAPI:
 
     @app.get("/config-check")
     def config_check() -> dict[str, str | int | bool]:
-        if settings.provider_require_api_key and (
-            not settings.provider_api_key or settings.provider_api_key == "REEMPLAZAR_CON_TOKEN_REAL"
-        ):
-            raise HTTPException(status_code=500, detail="PROVIDER_API_KEY no configurada")
-
         return {
             "sql_server": settings.sql_server,
             "sql_database": settings.sql_database,
             "provider_base_url": settings.provider_base_url,
-            "provider_require_api_key": settings.provider_require_api_key,
+            "provider_use_doc_hash": settings.provider_use_doc_hash,
+            "provider_has_api_key": bool(settings.provider_api_key and settings.provider_api_key != "REEMPLAZAR_CON_TOKEN_REAL"),
             "provider_timeout_seconds": settings.provider_timeout_seconds,
             "app_host": settings.app_host,
             "app_port": settings.app_port,
