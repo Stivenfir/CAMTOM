@@ -6,3 +6,5 @@ msal
 numpy
 pydantic
 fastapi
+uvicorn
+python-dotenv

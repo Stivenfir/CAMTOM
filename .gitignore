@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Env
+.venv/
+.env
+
+# Logs
+*.log
+
+# Office / PDFs / media artifacts
+*.xlsx
+*.xls
+*.pdf
+*.docx
+*.jpg
+*.png
+~$*
+
+# Misc generated
+*.bat
