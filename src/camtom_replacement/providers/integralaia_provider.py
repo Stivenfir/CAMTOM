@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 import requests
 
@@ -8,21 +9,50 @@ class IntegralaiaProvider:
     base_url: str
     api_key: str
     timeout: int = 60
+    extraction_timeout: int = 180
 
     @property
     def _headers(self) -> dict[str, str]:
-        headers = {"accept": "application/json"}
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["x-api-key"] = self.api_key
         return headers
 
-    def create_operation_from_middleware(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_operation(self, payload: dict[str, Any]) -> dict[str, Any]:
         response = requests.post(
-            f"{self.base_url}/api/middleware/create-operation-from-mdw",
+            f"{self.base_url}/api/mw/operations",
             headers=self._headers,
             json=payload,
             timeout=self.timeout,
         )
+        response.raise_for_status()
+        return response.json()
+
+    def extract_sync_from_file(
+        self,
+        operation_id: str,
+        file_path: str,
+        document_type_code: str,
+    ) -> dict[str, Any]:
+        pdf = Path(file_path)
+        if not pdf.exists():
+            raise FileNotFoundError(f"Archivo no encontrado: {file_path}")
+
+        headers = {"accept": "application/json"}
+        if self.api_key:
+            headers["x-api-key"] = self.api_key
+
+        with open(pdf, "rb") as file:
+            response = requests.post(
+                f"{self.base_url}/api/mw/operations/{operation_id}/documents/extract-sync",
+                headers=headers,
+                files={"file": (pdf.name, file, "application/pdf")},
+                data={"document_type_code": document_type_code},
+                timeout=self.extraction_timeout,
+            )
         response.raise_for_status()
         return response.json()
 
@@ -40,15 +70,6 @@ class IntegralaiaProvider:
             f"{self.base_url}/api/mw/document-types/{document_code}/extraction-schema",
             headers=self._headers,
             json=schema,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def get_extracted_data(self, doc_impoid: int) -> dict[str, Any]:
-        response = requests.get(
-            f"{self.base_url}/api/mw/operations/{doc_impoid}/documents/extracted-data",
-            headers=self._headers,
             timeout=self.timeout,
         )
         response.raise_for_status()
