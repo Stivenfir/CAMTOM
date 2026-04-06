@@ -26,6 +26,7 @@ class IntegralaiaProvider:
             f"{self.base_url}/api/mw/operations",
             headers=self._headers,
             json=payload,
+            params=self._hash_params(doc_impoid),
             timeout=self.timeout,
         )
         response.raise_for_status()

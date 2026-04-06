@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
         base_url=settings.provider_base_url,
         api_key=settings.provider_api_key,
         timeout=settings.provider_timeout_seconds,
+        use_doc_hash=settings.provider_use_doc_hash,
     )
     extraction_service = ExtractionService(
         tracking_repository,

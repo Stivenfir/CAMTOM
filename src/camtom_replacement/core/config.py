@@ -24,6 +24,7 @@ class Settings(BaseModel):
 
     provider_base_url: str = Field(default_factory=lambda: os.getenv("PROVIDER_BASE_URL", "https://dev-visado-api-abcrepecev.integralaia.com"))
     provider_api_key: str = Field(default_factory=lambda: os.getenv("PROVIDER_API_KEY", ""))
+    provider_use_doc_hash: bool = Field(default_factory=lambda: os.getenv("PROVIDER_USE_DOC_HASH", "false").lower() == "true")
     provider_timeout_seconds: int = Field(default_factory=lambda: int(os.getenv("PROVIDER_TIMEOUT_SECONDS", "60")))
     default_document_type_code: str = Field(default_factory=lambda: os.getenv("DEFAULT_DOCUMENT_TYPE_CODE", "FACTURACOMERCIAL"))
 
