@@ -24,6 +24,7 @@ class Settings(BaseModel):
 
     provider_base_url: str = Field(default_factory=lambda: os.getenv("PROVIDER_BASE_URL", "https://dev-visado-api-abcrepecev.integralaia.com"))
     provider_api_key: str = Field(default_factory=lambda: os.getenv("PROVIDER_API_KEY", ""))
+    provider_use_doc_hash: bool = Field(default_factory=lambda: os.getenv("PROVIDER_USE_DOC_HASH", "false").lower() == "true")
     provider_timeout_seconds: int = Field(default_factory=lambda: int(os.getenv("PROVIDER_TIMEOUT_SECONDS", "60")))
 
     app_host: str = Field(default_factory=lambda: os.getenv("APP_HOST", "0.0.0.0"))
@@ -31,13 +32,7 @@ class Settings(BaseModel):
     app_reload: bool = Field(default_factory=lambda: os.getenv("APP_RELOAD", "false").lower() == "true")
 
     def validate_required(self) -> None:
-        missing: list[str] = []
-
-        if not self.provider_api_key or self.provider_api_key == "REEMPLAZAR_CON_TOKEN_REAL":
-            missing.append("PROVIDER_API_KEY")
-
-        if missing:
-            raise ValueError(f"Faltan variables obligatorias: {', '.join(missing)}")
+        return None
 
 
 def get_settings(validate: bool = True) -> Settings:
