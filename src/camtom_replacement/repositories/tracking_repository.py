@@ -80,26 +80,3 @@ class TrackingRepository:
             )
             conn.commit()
             cursor.close()
-
-    def build_operation_payload(
-        self,
-        doc_impoid: int,
-        documents: list[tuple[str, int, int]],
-    ) -> dict[str, Any]:
-        return {
-            "doc_impoid": str(doc_impoid),
-            "do_number": str(doc_impoid),
-            "operation_date": datetime.now().date().isoformat(),
-            "client_name": "",
-            "executive_name": "",
-            "details": {
-                "documents": [
-                    {
-                        "ruta_factura": ruta_factura,
-                        "procesar_factura_id": procesar_factura_id,
-                        "soporte_id": soporte_id,
-                    }
-                    for ruta_factura, procesar_factura_id, soporte_id in documents
-                ]
-            },
-        }

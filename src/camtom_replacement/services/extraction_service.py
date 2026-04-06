@@ -9,52 +9,49 @@ from camtom_replacement.repositories.tracking_repository import TrackingReposito
 class ExtractionService:
     """Orquesta extracción con nuevo proveedor y tracking existente."""
 
-    def __init__(self, tracking_repository: TrackingRepository, provider: IntegralaiaProvider) -> None:
+    def __init__(
+        self,
+        tracking_repository: TrackingRepository,
+        provider: IntegralaiaProvider,
+        document_type_code: str = "FACTURACOMERCIAL",
+    ) -> None:
         self.tracking_repository = tracking_repository
         self.provider = provider
+        self.document_type_code = document_type_code
 
     def process_doc_impoid(self, doc_impoid: int) -> list[dict[str, Any]]:
         pending_docs = self.tracking_repository.get_pending_documents(doc_impoid)
         results: list[dict[str, Any]] = []
 
-        for _, procesar_factura_id, _ in pending_docs:
-            self.tracking_repository.mark_start(procesar_factura_id)
-
-        try:
-            operation_payload = self.tracking_repository.build_operation_payload(
-                doc_impoid=doc_impoid,
-                documents=pending_docs,
-            )
-            operation = self.provider.create_operation(operation_payload)
-            extracted_data = self.provider.get_extracted_data(doc_impoid)
-            has_global_error = False
-        except Exception as exc:
-            operation = None
-            extracted_data = None
-            has_global_error = True
-            global_error = str(exc)
-
         for ruta_factura, procesar_factura_id, _ in pending_docs:
-            if not has_global_error:
+            self.tracking_repository.mark_start(procesar_factura_id)
+            try:
+                operation = self.provider.create_operation(
+                    self._build_operation_payload(doc_impoid, ruta_factura)
+                )
+                extraction = self.provider.extract_sync_from_file(
+                    operation_id=operation["id"],
+                    file_path=ruta_factura,
+                    document_type_code=self.document_type_code,
+                )
                 self.tracking_repository.mark_success(procesar_factura_id)
                 results.append(
                     {
                         "procesar_factura_id": procesar_factura_id,
                         "ruta_factura": ruta_factura,
                         "operation": operation,
-                        "extracted_data": extracted_data,
+                        "extraction": extraction,
                     }
                 )
-                continue
-
-            self.tracking_repository.mark_error(procesar_factura_id, global_error)
-            results.append(
-                {
-                    "procesar_factura_id": procesar_factura_id,
-                    "ruta_factura": ruta_factura,
-                    "error": global_error,
-                }
-            )
+            except Exception as exc:
+                self.tracking_repository.mark_error(procesar_factura_id, str(exc))
+                results.append(
+                    {
+                        "procesar_factura_id": procesar_factura_id,
+                        "ruta_factura": ruta_factura,
+                        "error": str(exc),
+                    }
+                )
 
         return results
 
@@ -71,30 +68,24 @@ class ExtractionService:
             "operation_date": date.today().isoformat(),
             "client_name": "",
             "executive_name": "",
-            "details": {
-                "documents": [
-                    {
-                        "file_name": file_path.name,
-                        "ruta_factura": str(file_path.resolve()),
-                    }
-                    for file_path in files
-                ]
-            },
+            "details": {},
         }
-
-        try:
-            operation = self.provider.create_operation(operation_payload)
-            extracted_data = self.provider.get_extracted_data(doc_impoid)
-            for file_path in files:
+        for file_path in files:
+            try:
+                operation = self.provider.create_operation(operation_payload)
+                extraction = self.provider.extract_sync_from_file(
+                    operation_id=operation["id"],
+                    file_path=str(file_path.resolve()),
+                    document_type_code=self.document_type_code,
+                )
                 results.append(
                     {
                         "file_name": file_path.name,
                         "operation": operation,
-                        "extracted_data": extracted_data,
+                        "extraction": extraction,
                     }
                 )
-        except Exception as exc:
-            for file_path in files:
+            except Exception as exc:
                 results.append(
                     {
                         "file_name": file_path.name,
@@ -107,4 +98,14 @@ class ExtractionService:
             "folder_path": str(folder.resolve()),
             "files_found": len(files),
             "results": results,
+        }
+
+    def _build_operation_payload(self, doc_impoid: int, ruta_factura: str) -> dict[str, Any]:
+        return {
+            "doc_impoid": str(doc_impoid),
+            "do_number": str(doc_impoid),
+            "operation_date": date.today().isoformat(),
+            "client_name": "",
+            "executive_name": "",
+            "details": {"ruta_factura": ruta_factura},
         }

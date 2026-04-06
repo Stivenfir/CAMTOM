@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import hashlib
+from pathlib import Path
 from typing import Any
 import requests
 
@@ -9,7 +9,7 @@ class IntegralaiaProvider:
     base_url: str
     api_key: str
     timeout: int = 60
-    use_doc_hash: bool = False
+    extraction_timeout: int = 180
 
     @property
     def _headers(self) -> dict[str, str]:
@@ -21,28 +21,6 @@ class IntegralaiaProvider:
             headers["x-api-key"] = self.api_key
         return headers
 
-    def _hash_params(self, doc_impoid: int | None) -> dict[str, str]:
-        if not self.use_doc_hash or doc_impoid is None:
-            return {}
-        doc_text = str(doc_impoid)
-        return {
-            "doc_impoid": doc_text,
-            "hash": hashlib.sha256(doc_text.encode("utf-8")).hexdigest(),
-        }
-
-    def create_operation_from_middleware(self, payload: dict[str, Any]) -> dict[str, Any]:
-        doc_impoid = payload.get("doc_impoid")
-        request_payload = {"doc_impoid": str(doc_impoid)}
-        response = requests.post(
-            f"{self.base_url}/api/mw/create-operation-from-mdw",
-            headers=self._headers,
-            json=request_payload,
-            params=self._hash_params(doc_impoid),
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return response.json()
-
     def create_operation(self, payload: dict[str, Any]) -> dict[str, Any]:
         response = requests.post(
             f"{self.base_url}/api/mw/operations",
@@ -50,6 +28,31 @@ class IntegralaiaProvider:
             json=payload,
             timeout=self.timeout,
         )
+        response.raise_for_status()
+        return response.json()
+
+    def extract_sync_from_file(
+        self,
+        operation_id: str,
+        file_path: str,
+        document_type_code: str,
+    ) -> dict[str, Any]:
+        pdf = Path(file_path)
+        if not pdf.exists():
+            raise FileNotFoundError(f"Archivo no encontrado: {file_path}")
+
+        headers = {"accept": "application/json"}
+        if self.api_key:
+            headers["x-api-key"] = self.api_key
+
+        with open(pdf, "rb") as file:
+            response = requests.post(
+                f"{self.base_url}/api/mw/operations/{operation_id}/documents/extract-sync",
+                headers=headers,
+                files={"file": (pdf.name, file, "application/pdf")},
+                data={"document_type_code": document_type_code},
+                timeout=self.extraction_timeout,
+            )
         response.raise_for_status()
         return response.json()
 
@@ -67,16 +70,6 @@ class IntegralaiaProvider:
             f"{self.base_url}/api/mw/document-types/{document_code}/extraction-schema",
             headers=self._headers,
             json=schema,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def get_extracted_data(self, doc_impoid: int) -> dict[str, Any]:
-        response = requests.get(
-            f"{self.base_url}/api/mw/operations/{doc_impoid}/documents/extracted-data",
-            headers=self._headers,
-            params=self._hash_params(doc_impoid),
             timeout=self.timeout,
         )
         response.raise_for_status()
