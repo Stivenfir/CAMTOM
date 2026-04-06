@@ -57,7 +57,7 @@ curl -X POST "http://localhost:8000/api/v2/procesar-carpeta" \
 
 1. Se consultan pendientes en `IA_IM_ProcesarFacturasIA`.
 2. Se marca inicio de procesamiento.
-3. Se llama `POST /api/middleware/create-operation-from-mdw`.
+3. Se llama `POST /api/mw/create-operation-from-mdw`.
 4. Se consulta extracción con `GET /api/mw/operations/{doc_impoid}/documents/extracted-data`.
 5. Se marca éxito/error en la tabla de tracking.
 
@@ -79,7 +79,7 @@ curl -X POST "http://localhost:8000/api/v2/procesar-carpeta" \
 Base URL docs:
 `https://dev-visado-api-abcrepecev.integralaia.com/docs`
 
-- `POST /api/middleware/create-operation-from-mdw`
+- `POST /api/mw/create-operation-from-mdw`
 - `GET /api/mw/document-types`
 - `PUT /api/mw/document-types/{document_code}/extraction-schema`
 - `GET /api/mw/operations/{doc_impoid}/documents/extracted-data`

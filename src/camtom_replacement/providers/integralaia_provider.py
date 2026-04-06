@@ -29,10 +29,11 @@ class IntegralaiaProvider:
 
     def create_operation_from_middleware(self, payload: dict[str, Any]) -> dict[str, Any]:
         doc_impoid = payload.get("doc_impoid")
+        request_payload = {"doc_impoid": str(doc_impoid)}
         response = requests.post(
-            f"{self.base_url}/api/middleware/create-operation-from-mdw",
+            f"{self.base_url}/api/mw/create-operation-from-mdw",
             headers=self._headers,
-            json=payload,
+            json=request_payload,
             params=self._hash_params(doc_impoid),
             timeout=self.timeout,
         )
