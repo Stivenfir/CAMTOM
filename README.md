@@ -28,9 +28,9 @@ Archivo `.env`:
 - `SQL_USERNAME=Repecev2005`
 - `SQL_PASSWORD=`
 - `PROVIDER_BASE_URL=https://dev-visado-api-abcrepecev.integralaia.com`
-- `PROVIDER_API_KEY=...` (opcional)
-- `PROVIDER_USE_DOC_HASH=false` (poner `true` para enviar `doc_impoid` + `hash` SHA256 en query string)
+- `PROVIDER_API_KEY=...` (requerida por el middleware)
 - `PROVIDER_TIMEOUT_SECONDS=60`
+- `DEFAULT_DOCUMENT_TYPE_CODE=FACTURACOMERCIAL`
 - `APP_HOST=0.0.0.0`
 - `APP_PORT=8000`
 - `APP_RELOAD=false`
@@ -57,8 +57,8 @@ curl -X POST "http://localhost:8000/api/v2/procesar-carpeta" \
 
 1. Se consultan pendientes en `IA_IM_ProcesarFacturasIA`.
 2. Se marca inicio de procesamiento.
-3. Se llama `POST /api/middleware/create-operation-from-mdw`.
-4. Se consulta extracción con `GET /api/mw/operations/{doc_impoid}/documents/extracted-data`.
+3. Se llama `POST /api/mw/operations` para crear/actualizar la operación.
+4. Se sube PDF y se extrae en tiempo real con `POST /api/mw/operations/{operation_id}/documents/extract-sync`.
 5. Se marca éxito/error en la tabla de tracking.
 
 ### Prueba rápida con carpeta local
@@ -70,16 +70,15 @@ curl -X POST "http://localhost:8000/api/v2/procesar-carpeta" \
 
 ### Autenticación / seguridad del middleware
 
-- Por defecto, el servicio puede llamar sin token (no se bloquea startup si `PROVIDER_API_KEY` está vacío).
-- Si defines `PROVIDER_API_KEY`, se envía `Authorization: Bearer ...`.
-- Si defines `PROVIDER_USE_DOC_HASH=true`, además se envían `doc_impoid` y `hash=SHA256(doc_impoid)` en query string (compatible con flujos legados tipo `GetCreateOperationUrl`).
+- Si defines `PROVIDER_API_KEY`, se envía `x-api-key: ...`.
+- Para extracción sync no se usa hash legacy; la extracción ocurre en `extract-sync` por `operation_id`.
 
 ## 5) Endpoints usados del proveedor
 
 Base URL docs:
 `https://dev-visado-api-abcrepecev.integralaia.com/docs`
 
-- `POST /api/middleware/create-operation-from-mdw`
+- `POST /api/mw/operations`
 - `GET /api/mw/document-types`
 - `PUT /api/mw/document-types/{document_code}/extraction-schema`
-- `GET /api/mw/operations/{doc_impoid}/documents/extracted-data`
+- `POST /api/mw/operations/{operation_id}/documents/extract-sync`

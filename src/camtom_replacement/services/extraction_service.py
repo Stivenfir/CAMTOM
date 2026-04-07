@@ -1,5 +1,6 @@
 from typing import Any
 from pathlib import Path
+from datetime import date
 
 from camtom_replacement.providers.integralaia_provider import IntegralaiaProvider
 from camtom_replacement.repositories.tracking_repository import TrackingRepository
@@ -8,33 +9,38 @@ from camtom_replacement.repositories.tracking_repository import TrackingReposito
 class ExtractionService:
     """Orquesta extracción con nuevo proveedor y tracking existente."""
 
-    def __init__(self, tracking_repository: TrackingRepository, provider: IntegralaiaProvider) -> None:
+    def __init__(
+        self,
+        tracking_repository: TrackingRepository,
+        provider: IntegralaiaProvider,
+        document_type_code: str = "FACTURACOMERCIAL",
+    ) -> None:
         self.tracking_repository = tracking_repository
         self.provider = provider
+        self.document_type_code = document_type_code
 
     def process_doc_impoid(self, doc_impoid: int) -> list[dict[str, Any]]:
         pending_docs = self.tracking_repository.get_pending_documents(doc_impoid)
         results: list[dict[str, Any]] = []
 
-        for ruta_factura, procesar_factura_id, soporte_id in pending_docs:
+        for ruta_factura, procesar_factura_id, _ in pending_docs:
             self.tracking_repository.mark_start(procesar_factura_id)
             try:
-                operation_payload = {
-                    "doc_impoid": doc_impoid,
-                    "procesar_factura_id": procesar_factura_id,
-                    "soporte_id": soporte_id,
-                    "ruta_factura": ruta_factura,
-                }
-                operation = self.provider.create_operation_from_middleware(operation_payload)
-                extracted_data = self.provider.get_extracted_data(doc_impoid)
-
+                operation = self.provider.create_operation(
+                    self._build_operation_payload(doc_impoid, ruta_factura)
+                )
+                extraction = self.provider.extract_sync_from_file(
+                    operation_id=operation["id"],
+                    file_path=ruta_factura,
+                    document_type_code=self.document_type_code,
+                )
                 self.tracking_repository.mark_success(procesar_factura_id)
                 results.append(
                     {
                         "procesar_factura_id": procesar_factura_id,
                         "ruta_factura": ruta_factura,
                         "operation": operation,
-                        "extracted_data": extracted_data,
+                        "extraction": extraction,
                     }
                 )
             except Exception as exc:
@@ -56,21 +62,27 @@ class ExtractionService:
         files = sorted(path for path in folder.iterdir() if path.is_file())
         results: list[dict[str, Any]] = []
 
-        for index, file_path in enumerate(files, start=1):
-            payload = {
-                "doc_impoid": doc_impoid,
-                "procesar_factura_id": index,
-                "soporte_id": index,
-                "ruta_factura": str(file_path.resolve()),
-            }
+        operation_payload = {
+            "doc_impoid": str(doc_impoid),
+            "do_number": str(doc_impoid),
+            "operation_date": date.today().isoformat(),
+            "client_name": "",
+            "executive_name": "",
+            "details": {},
+        }
+        for file_path in files:
             try:
-                operation = self.provider.create_operation_from_middleware(payload)
-                extracted_data = self.provider.get_extracted_data(doc_impoid)
+                operation = self.provider.create_operation(operation_payload)
+                extraction = self.provider.extract_sync_from_file(
+                    operation_id=operation["id"],
+                    file_path=str(file_path.resolve()),
+                    document_type_code=self.document_type_code,
+                )
                 results.append(
                     {
                         "file_name": file_path.name,
                         "operation": operation,
-                        "extracted_data": extracted_data,
+                        "extraction": extraction,
                     }
                 )
             except Exception as exc:
@@ -86,4 +98,14 @@ class ExtractionService:
             "folder_path": str(folder.resolve()),
             "files_found": len(files),
             "results": results,
+        }
+
+    def _build_operation_payload(self, doc_impoid: int, ruta_factura: str) -> dict[str, Any]:
+        return {
+            "doc_impoid": str(doc_impoid),
+            "do_number": str(doc_impoid),
+            "operation_date": date.today().isoformat(),
+            "client_name": "",
+            "executive_name": "",
+            "details": {"ruta_factura": ruta_factura},
         }

@@ -30,7 +30,11 @@ def create_app() -> FastAPI:
         timeout=settings.provider_timeout_seconds,
         use_doc_hash=settings.provider_use_doc_hash,
     )
-    extraction_service = ExtractionService(tracking_repository, provider)
+    extraction_service = ExtractionService(
+        tracking_repository,
+        provider,
+        document_type_code=settings.default_document_type_code,
+    )
 
     app = FastAPI(title="CAMTOM Replacement - Integralaia")
 
@@ -48,9 +52,9 @@ def create_app() -> FastAPI:
             "sql_server": settings.sql_server,
             "sql_database": settings.sql_database,
             "provider_base_url": settings.provider_base_url,
-            "provider_use_doc_hash": settings.provider_use_doc_hash,
             "provider_has_api_key": bool(settings.provider_api_key and settings.provider_api_key != "REEMPLAZAR_CON_TOKEN_REAL"),
             "provider_timeout_seconds": settings.provider_timeout_seconds,
+            "default_document_type_code": settings.default_document_type_code,
             "app_host": settings.app_host,
             "app_port": settings.app_port,
             "app_reload": settings.app_reload,
